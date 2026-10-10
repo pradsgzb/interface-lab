@@ -1,0 +1,48 @@
+name: Build and teach
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure core lessons
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Build core lessons and plugin
+        run: cmake --build build --config Debug --parallel 2
+      - name: Check all 21 lessons and contracts
+        run: ctest --test-dir build -C Debug --output-on-failure
+  frontends:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: linux_gcc_64
+          - os: windows-2022
+            arch: win64_msvc2022_64
+          - os: macos-14
+            arch: clang_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: ${{ matrix.arch }}
+          modules: 'qthttpserver qtwebsockets'
+          cache: true
+      - name: Configure real frontends
+        run: cmake -S . -B build-qt -DCMAKE_BUILD_TYPE=Debug -DINTERFACE_LAB_QT=ON
+      - name: Build all frontends
+        run: cmake --build build-qt --config Debug --parallel 2
+      - name: Test including offscreen GUI and real HTTP
+        run: ctest --test-dir build-qt -C Debug --output-on-failure

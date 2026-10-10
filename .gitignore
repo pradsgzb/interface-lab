@@ -1,0 +1,6 @@
+/build*/
+/lab-output/
+__pycache__/
+*.user
+.vs/
+.DS_Store
